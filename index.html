@@ -1,0 +1,84 @@
+<div id="drawing"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/2.6.5/svg.js"></script>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"> </script>
+<script>
+    $.getJSON('http://localhost:3001/getjson', function (data) {
+        //do stuff with your data here
+        draw_dep(data)
+
+        function draw_dep(data) {
+            var draw = SVG('drawing').size('100%', 100)
+            text = s => draw.text(s).font('anchor', 'middle')
+            line = (x1, y1, x2, y2) => draw.line(x1, y1, x2, y2).stroke({ width: 1 })
+            path = s => draw.path(s).fill('none').stroke({ width: 1 })
+            dot = draw.circle(3).fill('red').move(-3, -3)
+            arrow = draw.marker(10, 10, add => add.polyline('0,1 8,5 0,9'))
+            max = Math.max
+
+            function draw_blocks(data) {
+                let blocks = []
+                let cur_x = 0
+                for (word of data.words) {
+                    var b = {}
+                    b.text = text(word.text)
+                    b.tag = text(word.tag)
+                    b.width = max(b.text.bbox().width, b.tag.bbox().width) + 20
+                    b.cx = cur_x + b.width / 2
+                    cur_x += b.width
+                    blocks.push(b)
+                }
+                let height = max(120, cur_x * 0.4 * arc_ratio() + 50)
+                draw.size(max(cur_x, document.body.clientWidth), height)
+                blocks.y = height - 40
+
+                for (b of blocks) {
+                    b.text.move(b.cx, blocks.y + 5)
+                    b.tag.move(b.cx, blocks.y + 25)
+                }
+                return blocks
+            }
+
+            function arc_ratio() {
+                let denom = data.words.length - 1
+                let d, num = 0
+                for (a of data.arcs) {
+                    d = Math.abs(a.end - a.start)
+                    num = max(num, d)
+                }
+                return num / denom
+            }
+
+            bb = draw_blocks(data)
+            console.log("ALREADY DRAW BOX")
+            function draw_arc(a) {
+                let x1 = bb[a.start].cx
+                let x2 = bb[a.end].cx
+                let y = bb.y
+                let right = +(a.dir == 'right')
+                let start, end
+                if (right) {
+                    start = x1 + 4
+                    end = x2
+                } else {
+                    start = x2 - 4
+                    end = x1
+                }
+                p = path('M' + start + ',' + y + ' A5,4 0 1,' + right + ' ' + end + ',' + (y - 5))
+                    .marker('end', arrow)
+
+                var b = p.bbox()
+                if (right) {
+                    b.cx += 7
+                } else {
+                    b.cx -= 7
+                }
+                text(a.label).font('size', 12).move(b.cx, b.y - 14)
+            }
+
+            for (arc of data.arcs) {
+                draw_arc(arc)
+            }
+            console.log("ALREADY DRAW ARC")
+        }
+    });
+</script>
